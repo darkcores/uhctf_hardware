@@ -14,9 +14,10 @@
 #include "maintenance.h"
 #include "app.h"
 
-const char *TAG = "ROOT";
+static const char *TAG = "ROOT";
 
-void init_device() {
+void init_device()
+{
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -24,9 +25,11 @@ void init_device() {
 
 void app_main()
 {
+    ESP_LOGI(TAG, "Initializing device functions");
     init_device();
 
-    start_maintenance_mode();
+    // start_maintenance_mode();
+    start_app_mode();
 
     // printf((char *)app_start);
     const TickType_t xDelay = 10 / portTICK_PERIOD_MS;

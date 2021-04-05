@@ -6,5 +6,3 @@
 
 void start_maintenance_mode();
 void stop_maintenance_mode();
-
-extern const char *TAG;

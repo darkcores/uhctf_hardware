@@ -14,7 +14,7 @@ extern const uint8_t bootstrap_js_end[] asm("_binary_bootstrap_bundle_min_js_end
 extern const uint8_t bootstrap_css_start[] asm("_binary_bootstrap_min_css_start");
 extern const uint8_t bootstrap_css_end[] asm("_binary_bootstrap_min_css_end");
 
-// const char *TAG = "MAINTENANCE";
+static const char *TAG = "MAINTENANCE";
 
 httpd_handle_t maintenance_server = NULL;
 
@@ -69,54 +69,48 @@ void wifi_init_softap()
 
 // HTTP SERVER +++++++++++++++++++++++++++++++++++++++++++++
 
-esp_err_t maintenance_get_handler(httpd_req_t *req)
+static esp_err_t maintenance_get_handler(httpd_req_t *req)
 {
-    /* Send a simple response */
-    // const char resp[] = "URI GET Response";
     httpd_resp_send(req, (char *)maintenance_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
-esp_err_t js_get_handler(httpd_req_t *req)
+static esp_err_t js_get_handler(httpd_req_t *req)
 {
-    /* Send a simple response */
-    // const char resp[] = "URI GET Response";
     httpd_resp_set_type(req, "text/javascript");
     httpd_resp_send(req, (char *)bootstrap_js_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
-esp_err_t css_get_handler(httpd_req_t *req)
+static esp_err_t css_get_handler(httpd_req_t *req)
 {
-    /* Send a simple response */
-    // const char resp[] = "URI GET Response";
     httpd_resp_set_type(req, "text/css");
     httpd_resp_send(req, (char *)bootstrap_css_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
-httpd_uri_t js_uri_get = {
+static httpd_uri_t js_uri_get = {
     .uri      = "/bootstrap.bundle.min.js",
     .method   = HTTP_GET,
     .handler  = js_get_handler,
     .user_ctx = NULL
 };
 
-httpd_uri_t css_uri_get = {
+static httpd_uri_t css_uri_get = {
     .uri      = "/bootstrap.min.css",
     .method   = HTTP_GET,
     .handler  = css_get_handler,
     .user_ctx = NULL
 };
 
-httpd_uri_t maintenance_uri_get = {
+static httpd_uri_t maintenance_uri_get = {
     .uri      = "/",
     .method   = HTTP_GET,
     .handler  = maintenance_get_handler,
     .user_ctx = NULL
 };
 
-httpd_handle_t start_webserver(void)
+static httpd_handle_t start_webserver(void)
 {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -138,13 +132,13 @@ httpd_handle_t start_webserver(void)
     return NULL;
 }
 
-void stop_webserver(httpd_handle_t server)
+static void stop_webserver(httpd_handle_t server)
 {
     // Stop the httpd server
     httpd_stop(server);
 }
 
-void disconnect_handler(void *arg, esp_event_base_t event_base,
+static void disconnect_handler(void *arg, esp_event_base_t event_base,
                         int32_t event_id, void *event_data)
 {
     httpd_handle_t *server = (httpd_handle_t *)arg;
@@ -156,7 +150,7 @@ void disconnect_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
-void connect_handler(void *arg, esp_event_base_t event_base,
+static void connect_handler(void *arg, esp_event_base_t event_base,
                      int32_t event_id, void *event_data)
 {
     httpd_handle_t *server = (httpd_handle_t *)arg;
