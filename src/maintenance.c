@@ -6,6 +6,14 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
+#include "string.h"
+#include "nvs_flash.h"
+#include <stdio.h>
+
+#define MIN(a, b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < b ? _a : _b; })
 
 extern const uint8_t maintenance_start[] asm("_binary_maintenance_html_start");
 extern const uint8_t maintenance_end[] asm("_binary_maintenance_html_end");
@@ -15,6 +23,9 @@ extern const uint8_t bootstrap_css_start[] asm("_binary_bootstrap_min_css_start"
 extern const uint8_t bootstrap_css_end[] asm("_binary_bootstrap_min_css_end");
 
 static const char *TAG = "MAINTENANCE";
+
+const char *ssidtok = "ssid";
+const char *passtok = "pwd";
 
 httpd_handle_t maintenance_server = NULL;
 
@@ -36,7 +47,7 @@ void wifi_event_handler(void *arg, esp_event_base_t event_base,
 }
 
 void wifi_init_softap()
-{    
+{
     esp_netif_create_default_wifi_ap();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -46,7 +57,7 @@ void wifi_init_softap()
                                                         &wifi_event_handler,
                                                         NULL,
                                                         NULL));
-                                                        
+
     wifi_config_t wifi_config = {
         .ap = {
             .ssid = MAINTENANCE_ESP_WIFI_SSID,
@@ -69,8 +80,102 @@ void wifi_init_softap()
 
 // HTTP SERVER +++++++++++++++++++++++++++++++++++++++++++++
 
+inline int ishex(int x)
+{
+	return	(x >= '0' && x <= '9')	||
+		(x >= 'a' && x <= 'f')	||
+		(x >= 'A' && x <= 'F');
+}
+ 
+int decode(const char *s, char *dec)
+{
+	char *o;
+	const char *end = s + strlen(s);
+	int c;
+ 
+	for (o = dec; s <= end; o++) {
+		c = *s++;
+		if (c == '+') c = ' ';
+		else if (c == '%' && (	!ishex(*s++)	||
+					!ishex(*s++)	||
+					!sscanf(s - 2, "%2x", &c)))
+			return -1;
+ 
+		if (dec) *o = c;
+	}
+ 
+	return o - dec;
+}
+
 static esp_err_t maintenance_get_handler(httpd_req_t *req)
 {
+    httpd_resp_send(req, (char *)maintenance_start, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+static esp_err_t maintenance_post_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "GOT POST REQUEST");
+    char content[100] = {0};
+    /* Truncate if content length larger than the buffer */
+    size_t recv_size = MIN(req->content_len, sizeof(content));
+    if (recv_size >= 99) { // Make sure def string not too large
+        return httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    int ret = httpd_req_recv(req, content, recv_size);
+    if (ret <= 0)
+    { /* 0 return value indicates connection closed */
+        /* Check if timeout occurred */
+        ESP_LOGE(TAG, "ERROR READING POST DATA (%d)", ret);
+        ESP_LOGE(TAG, "%s", esp_err_to_name(ret));
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+        {
+            /* In case of timeout one can choose to retry calling
+             * httpd_req_recv(), but to keep it simple, here we
+             * respond with an HTTP 408 (Request Timeout) error */
+            httpd_resp_send_408(req);
+        }
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "Recv data: %s", content);
+
+
+    nvs_handle_t storage_handle;
+    ESP_ERROR_CHECK(nvs_open("storage", NVS_READWRITE, &storage_handle));
+
+    // Extract the first token
+    char *token = strtok(content, "&");
+    // loop through the string to extract all other tokens
+    while (token != NULL)
+    {
+        if (strncmp(ssidtok, token, strlen(ssidtok)) == 0) {
+            char *ssid_ptr = &token[strlen(ssidtok) + 1];
+            if (strlen(ssid_ptr) >= 32) {
+                return httpd_resp_send_500(req);
+                return ESP_FAIL;
+            }
+            char ssid[32] = {0};
+            decode(ssid_ptr, ssid);
+            ESP_LOGW(TAG, "Set SSID to: %s", ssid);
+            nvs_set_str(storage_handle, "ssid", ssid);
+        }
+        if (strncmp(passtok, token, strlen(passtok)) == 0) {
+            char *pass_ptr = &token[strlen(passtok) + 1];
+            if (strlen(pass_ptr) >= 64) {
+                return httpd_resp_send_500(req);
+                return ESP_FAIL;
+            }
+            char pwd[64] = {0};
+            decode(pass_ptr, pwd);
+            ESP_LOGW(TAG, "Set WPA2 KEY to: %s", pwd);
+            nvs_set_str(storage_handle, "wpa_key", pwd);
+        }
+        token = strtok(NULL, " ");
+    }
+    nvs_close(storage_handle);
+
     httpd_resp_send(req, (char *)maintenance_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
@@ -90,25 +195,28 @@ static esp_err_t css_get_handler(httpd_req_t *req)
 }
 
 static httpd_uri_t js_uri_get = {
-    .uri      = "/bootstrap.bundle.min.js",
-    .method   = HTTP_GET,
-    .handler  = js_get_handler,
-    .user_ctx = NULL
-};
+    .uri = "/bootstrap.bundle.min.js",
+    .method = HTTP_GET,
+    .handler = js_get_handler,
+    .user_ctx = NULL};
 
 static httpd_uri_t css_uri_get = {
-    .uri      = "/bootstrap.min.css",
-    .method   = HTTP_GET,
-    .handler  = css_get_handler,
-    .user_ctx = NULL
-};
+    .uri = "/bootstrap.min.css",
+    .method = HTTP_GET,
+    .handler = css_get_handler,
+    .user_ctx = NULL};
 
 static httpd_uri_t maintenance_uri_get = {
-    .uri      = "/",
-    .method   = HTTP_GET,
-    .handler  = maintenance_get_handler,
-    .user_ctx = NULL
-};
+    .uri = "/",
+    .method = HTTP_GET,
+    .handler = maintenance_get_handler,
+    .user_ctx = NULL};
+
+static httpd_uri_t maintenance_uri_post = {
+    .uri = "/",
+    .method = HTTP_POST,
+    .handler = maintenance_post_handler,
+    .user_ctx = NULL};
 
 static httpd_handle_t start_webserver(void)
 {
@@ -123,6 +231,7 @@ static httpd_handle_t start_webserver(void)
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &maintenance_uri_get);
+        httpd_register_uri_handler(server, &maintenance_uri_post);
         httpd_register_uri_handler(server, &js_uri_get);
         httpd_register_uri_handler(server, &css_uri_get);
         return server;
@@ -139,7 +248,7 @@ static void stop_webserver(httpd_handle_t server)
 }
 
 static void disconnect_handler(void *arg, esp_event_base_t event_base,
-                        int32_t event_id, void *event_data)
+                               int32_t event_id, void *event_data)
 {
     httpd_handle_t *server = (httpd_handle_t *)arg;
     if (*server)
@@ -151,7 +260,7 @@ static void disconnect_handler(void *arg, esp_event_base_t event_base,
 }
 
 static void connect_handler(void *arg, esp_event_base_t event_base,
-                     int32_t event_id, void *event_data)
+                            int32_t event_id, void *event_data)
 {
     httpd_handle_t *server = (httpd_handle_t *)arg;
     if (*server == NULL)

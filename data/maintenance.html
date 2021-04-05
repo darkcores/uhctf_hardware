@@ -14,9 +14,9 @@
         <div class="alert alert-warning" role="alert">
             Maintenance mode page.
         </div>
-        <div class="container">
+        <!-- <div class="container">
             <h2>User settings</h2>
-            <form>
+            <form method="POST">
                 <div class="mb-3">
                     <label for="username" class="form-label">Username</label>
                     <input type="text" class="form-control" id="username">
@@ -27,20 +27,20 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Submit</button>
             </form>
-        </div>
+        </div> -->
         <div class="container-sm">
             <h2>Wifi Settings</h2>
             <p>Wifi this device connects with during normal operation.</p>
-            <form>
+            <form method="POST">
                 <div class="mb-3">
                     <label for="ssid" class="form-label">SSID</label>
-                    <input type="text" class="form-control" id="ssid">
+                    <input type="text" class="form-control" name="ssid">
                 </div>
                 <div class="mb-3">
                     <label for="pwd" class="form-label">Key (WPA2)</label>
-                    <input type="password" class="form-control" id="pwd">
+                    <input type="password" class="form-control" name="pwd">
                 </div>
-                <div class="mb-3">
+                <!-- <div class="mb-3">
                     <label for="ipaddr" class="form-label">IP Address</label>
                     <input type="text" class="form-control" id="ipaddr">
                 </div>
@@ -51,7 +51,7 @@
                 <div class="mb-3">
                     <label for="subnet" class="form-label">Subnet mask</label>
                     <input type="text" class="form-control" id="subnet">
-                </div>
+                </div> -->
                 <button type="submit" class="btn btn-primary">Submit</button>
             </form>
         </div>
