@@ -10,10 +10,15 @@
 #include "nvs_flash.h"
 #include <stdio.h>
 
+#include "flags.h"
+
 #define MIN(a, b) \
     ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < b ? _a : _b; })
+
+#define CONCAT2(a, b) a ## b
+#define CONCAT(a, b) CONCAT2(a, b)
 
 extern const uint8_t maintenance_start[] asm("_binary_maintenance_html_start");
 extern const uint8_t maintenance_end[] asm("_binary_maintenance_html_end");
@@ -21,11 +26,15 @@ extern const uint8_t bootstrap_js_start[] asm("_binary_bootstrap_bundle_min_js_s
 extern const uint8_t bootstrap_js_end[] asm("_binary_bootstrap_bundle_min_js_end");
 extern const uint8_t bootstrap_css_start[] asm("_binary_bootstrap_min_css_start");
 extern const uint8_t bootstrap_css_end[] asm("_binary_bootstrap_min_css_end");
+extern const uint8_t webkey_pem_start[] asm("_binary_webkey_pem_start");
+extern const uint8_t webkey_pem_end[] asm("_binary_webkey_pem_end");
 
 static const char *TAG = "MAINTENANCE";
 
 const char *ssidtok = "ssid";
 const char *passtok = "pwd";
+
+const char *full_url = "http://192.168.4.1/?flag=" CTF_FLAG2;
 
 httpd_handle_t maintenance_server = NULL;
 
@@ -109,6 +118,14 @@ int decode(const char *s, char *dec)
 
 static esp_err_t maintenance_get_handler(httpd_req_t *req)
 {
+    if (strstr(req->uri, "flag") == NULL) {
+        // Flag not here
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_set_status(req, "302 Found");
+        httpd_resp_set_hdr(req, "Location", full_url);
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
+    }
     httpd_resp_send(req, (char *)maintenance_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
@@ -194,6 +211,13 @@ static esp_err_t css_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t backup_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_send(req, (char *)webkey_pem_start, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
 static httpd_uri_t js_uri_get = {
     .uri = "/bootstrap.bundle.min.js",
     .method = HTTP_GET,
@@ -204,6 +228,12 @@ static httpd_uri_t css_uri_get = {
     .uri = "/bootstrap.min.css",
     .method = HTTP_GET,
     .handler = css_get_handler,
+    .user_ctx = NULL};
+
+static httpd_uri_t backup_uri_get = {
+    .uri = "/backup",
+    .method = HTTP_GET,
+    .handler = backup_get_handler,
     .user_ctx = NULL};
 
 static httpd_uri_t maintenance_uri_get = {
@@ -234,6 +264,7 @@ static httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &maintenance_uri_post);
         httpd_register_uri_handler(server, &js_uri_get);
         httpd_register_uri_handler(server, &css_uri_get);
+        httpd_register_uri_handler(server, &backup_uri_get);
         return server;
     }
 
@@ -274,6 +305,7 @@ static void connect_handler(void *arg, esp_event_base_t event_base,
 
 void start_maintenance_mode()
 {
+    // Setup ap
     wifi_init_softap();
     ESP_LOGI(TAG, "Webserver setup");
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STACONNECTED, &connect_handler, &maintenance_server));

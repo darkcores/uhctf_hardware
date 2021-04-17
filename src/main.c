@@ -14,6 +14,7 @@
 
 #include "maintenance.h"
 #include "app.h"
+#include "flags.h"
 
 static const char *TAG = "ROOT";
 
@@ -49,6 +50,7 @@ void init_device()
 void app_main()
 {
     ESP_LOGI(TAG, "Initializing device functions");
+    ESP_LOGI(TAG, CTF_FLAG1);
     init_device();
 
     int mode = gpio_get_level(PIN_MAINTENANCE);
