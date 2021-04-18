@@ -31,6 +31,7 @@ static const char *TAG = "APP";
 
 static const char *full_url = "/?flag=" CTF_FLAG3;
 static const char *update_url = "/?upd=0&flag=" CTF_FLAG3;
+static const char *roll_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
 extern bool AUTHORIZED;
 
@@ -94,10 +95,18 @@ void wifi_init_sta(void)
                                                         NULL,
                                                         &instance_got_ip));
 
+    nvs_handle_t storage_handle;
+    ESP_ERROR_CHECK(nvs_open("storage", NVS_READWRITE, &storage_handle));
+    size_t ipsize = 16;
+    size_t pwdsize = 64;
+    char ssid[ipsize];
+    char pwd[pwdsize];
+    nvs_get_str(storage_handle, "ssid", &ssid[0], &ipsize);
+    nvs_get_str(storage_handle, "wpa_key", &pwd[0], &pwdsize);
+    nvs_close(storage_handle);
+
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = APP_ESP_WIFI_SSID,
-            .password = APP_ESP_WIFI_PASS,
             /* Setting a password implies station will connect to all security modes including WEP/WPA.
              * However these modes are deprecated and not advisable to be used. Incase your Access point
              * doesn't support WPA2, these mode can be enabled by commenting below line */
@@ -108,6 +117,8 @@ void wifi_init_sta(void)
                 .required = false},
         },
     };
+    strcpy((char *)&wifi_config.sta.ssid[0], ssid);
+    strcpy((char *)&wifi_config.sta.password[0], pwd);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -127,12 +138,12 @@ void wifi_init_sta(void)
     if (bits & WIFI_CONNECTED_BIT)
     {
         ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-                 APP_ESP_WIFI_SSID, APP_ESP_WIFI_PASS);
+                 ssid, pwd);
     }
     else if (bits & WIFI_FAIL_BIT)
     {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
-                 APP_ESP_WIFI_SSID, APP_ESP_WIFI_PASS);
+                 ssid, pwd);
     }
     else
     {
@@ -197,6 +208,12 @@ static esp_err_t app_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t roll_get_handler(httpd_req_t *req)
+{
+    httpd_resp_send(req, roll_url, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
 static esp_err_t update_get_handler(httpd_req_t *req)
 {
     if (!AUTHORIZED)
@@ -225,6 +242,12 @@ static httpd_uri_t app_uri_get = {
     .handler = app_get_handler,
     .user_ctx = NULL};
 
+static httpd_uri_t roll_uri_get = {
+    .uri = "/flag*",
+    .method = HTTP_GET,
+    .handler = roll_get_handler,
+    .user_ctx = NULL};
+
 static httpd_uri_t update_uri_get = {
     .uri = "/update",
     .method = HTTP_POST,
@@ -248,6 +271,7 @@ static httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &css_uri_get);
         httpd_register_uri_handler(server, &app_uri_get);
         httpd_register_uri_handler(server, &update_uri_get);
+        httpd_register_uri_handler(server, &roll_uri_get);
         return server;
     }
 
