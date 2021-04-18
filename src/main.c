@@ -15,6 +15,7 @@
 #include "maintenance.h"
 #include "app.h"
 #include "flags.h"
+#include "keypad.h"
 
 static const char *TAG = "ROOT";
 

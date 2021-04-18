@@ -11,15 +11,26 @@
 <body>
   <div class="container">
     <h1>Discombobulator</h1>
-    <div class="alert alert-danger" role="alert">
-      UCHTF{}
+    <div class="alert alert-info" id="flag">
     </div>
     <div class="container">
       <h2>Backup Internal Keys</h2>
       <p>Backup keys in case something goes wrong.</p>
+      <form action="/update" method="GET">
+        <button type="submit" class="btn btn-primary" name="update">Check Updates</button>
+      </form>
+      <p id="update"></p>
     </div>
   </div>
   <script src="bootstrap.bundle.min.js"></script>
+  <script>
+    window.onload = function (e) {
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+      document.getElementById("flag").innerText = urlParams.get('flag');
+      document.getElementById("update").innerText = urlParams.get('update');
+    }
+  </script>
 </body>
 
 </html>

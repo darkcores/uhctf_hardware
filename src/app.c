@@ -11,18 +11,28 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "esp_http_client.h"
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
+#include "flags.h"
+
 extern const uint8_t app_start[] asm("_binary_app_html_start");
 extern const uint8_t app_end[] asm("_binary_app_html_end");
+extern const uint8_t auth_start[] asm("_binary_auth_html_start");
+extern const uint8_t auth_end[] asm("_binary_auth_html_end");
 extern const uint8_t bootstrap_js_start[] asm("_binary_bootstrap_bundle_min_js_start");
 extern const uint8_t bootstrap_js_end[] asm("_binary_bootstrap_bundle_min_js_end");
 extern const uint8_t bootstrap_css_start[] asm("_binary_bootstrap_min_css_start");
 extern const uint8_t bootstrap_css_end[] asm("_binary_bootstrap_min_css_end");
 
 static const char *TAG = "APP";
+
+static const char *full_url = "http://192.168.4.1/?flag=" CTF_FLAG3;
+static const char *update_url = "http://192.168.4.1/?update=No update found&flag=" CTF_FLAG3;
+
+extern bool AUTHORIZED;
 
 EventGroupHandle_t s_wifi_event_group;
 
@@ -151,10 +161,41 @@ static esp_err_t css_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t unauthorized(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_status(req, "401 Unauthorized");
+    httpd_resp_send(req, (char *)auth_start, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+static esp_err_t redirect(httpd_req_t *req, const char *url) {
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_set_status(req, "302 Found");
+        httpd_resp_set_hdr(req, "Location", url);
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
+}
+
 static esp_err_t app_get_handler(httpd_req_t *req)
 {
+    if (!AUTHORIZED) {
+        return unauthorized(req);
+    }
+    if (strstr(req->uri, "flag") == NULL)
+    {
+        // Flag not here
+        return redirect(req, full_url);
+    }
     httpd_resp_send(req, (char *)app_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
+}
+
+static esp_err_t update_get_handler(httpd_req_t *req)
+{
+    if (!AUTHORIZED) {
+        return unauthorized(req);
+    }
+    return redirect(req, update_url);
 }
 
 static httpd_uri_t js_uri_get = {
@@ -169,13 +210,17 @@ static httpd_uri_t css_uri_get = {
     .handler = css_get_handler,
     .user_ctx = NULL};
 
-
 static httpd_uri_t app_uri_get = {
-    .uri      = "/",
-    .method   = HTTP_GET,
-    .handler  = app_get_handler,
-    .user_ctx = NULL
-};
+    .uri = "/",
+    .method = HTTP_GET,
+    .handler = app_get_handler,
+    .user_ctx = NULL};
+
+static httpd_uri_t update_uri_get = {
+    .uri = "/update",
+    .method = HTTP_GET,
+    .handler = update_get_handler,
+    .user_ctx = NULL};
 
 static httpd_handle_t start_webserver(void)
 {
@@ -193,6 +238,7 @@ static httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &js_uri_get);
         httpd_register_uri_handler(server, &css_uri_get);
         httpd_register_uri_handler(server, &app_uri_get);
+        httpd_register_uri_handler(server, &update_uri_get);
         return server;
     }
 

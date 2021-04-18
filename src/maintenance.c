@@ -34,7 +34,7 @@ static const char *TAG = "MAINTENANCE";
 const char *ssidtok = "ssid";
 const char *passtok = "pwd";
 
-const char *full_url = "http://192.168.4.1/?flag=" CTF_FLAG2;
+static const char *full_url = "http://192.168.4.1/?flag=" CTF_FLAG2;
 
 httpd_handle_t maintenance_server = NULL;
 
