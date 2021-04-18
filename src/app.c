@@ -29,8 +29,8 @@ extern const uint8_t bootstrap_css_end[] asm("_binary_bootstrap_min_css_end");
 
 static const char *TAG = "APP";
 
-static const char *full_url = "http://192.168.4.1/?flag=" CTF_FLAG3;
-static const char *update_url = "http://192.168.4.1/?update=No update found&flag=" CTF_FLAG3;
+static const char *full_url = "/?flag=" CTF_FLAG3;
+static const char *update_url = "/?upd=0&flag=" CTF_FLAG3;
 
 extern bool AUTHORIZED;
 
@@ -161,24 +161,31 @@ static esp_err_t css_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-static esp_err_t unauthorized(httpd_req_t *req) {
+static esp_err_t unauthorized(httpd_req_t *req)
+{
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_status(req, "401 Unauthorized");
     httpd_resp_send(req, (char *)auth_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
-static esp_err_t redirect(httpd_req_t *req, const char *url) {
-        httpd_resp_set_type(req, "text/html");
-        httpd_resp_set_status(req, "302 Found");
-        httpd_resp_set_hdr(req, "Location", url);
-        httpd_resp_send(req, NULL, 0);
-        return ESP_OK;
+static esp_err_t redirect(httpd_req_t *req, const char *url)
+{
+    if (strlen(req->uri) > 50)
+    {
+        return unauthorized(req);
+    }
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", url);
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
 }
 
 static esp_err_t app_get_handler(httpd_req_t *req)
 {
-    if (!AUTHORIZED) {
+    if (!AUTHORIZED)
+    {
         return unauthorized(req);
     }
     if (strstr(req->uri, "flag") == NULL)
@@ -192,9 +199,11 @@ static esp_err_t app_get_handler(httpd_req_t *req)
 
 static esp_err_t update_get_handler(httpd_req_t *req)
 {
-    if (!AUTHORIZED) {
+    if (!AUTHORIZED)
+    {
         return unauthorized(req);
     }
+    // remove update from url
     return redirect(req, update_url);
 }
 
@@ -218,7 +227,7 @@ static httpd_uri_t app_uri_get = {
 
 static httpd_uri_t update_uri_get = {
     .uri = "/update",
-    .method = HTTP_GET,
+    .method = HTTP_POST,
     .handler = update_get_handler,
     .user_ctx = NULL};
 

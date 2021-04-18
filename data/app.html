@@ -16,8 +16,8 @@
     <div class="container">
       <h2>Backup Internal Keys</h2>
       <p>Backup keys in case something goes wrong.</p>
-      <form action="/update" method="GET">
-        <button type="submit" class="btn btn-primary" name="update">Check Updates</button>
+      <form action="/update" method="POST">
+        <button type="submit" class="btn btn-primary">Check Updates</button>
       </form>
       <p id="update"></p>
     </div>
@@ -28,7 +28,9 @@
       const queryString = window.location.search;
       const urlParams = new URLSearchParams(queryString);
       document.getElementById("flag").innerText = urlParams.get('flag');
-      document.getElementById("update").innerText = urlParams.get('update');
+      if (urlParams.get('upd') == "0") {
+        document.getElementById("update").innerText = "No update found";
+      }
     }
   </script>
 </body>

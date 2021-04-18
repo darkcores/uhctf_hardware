@@ -46,6 +46,8 @@ void init_device()
         .pin_bit_mask = PIN_MAINT_MASK,
         .pull_up_en = 1};
     gpio_config(&io_conf);
+
+    keypad_init();
 }
 
 void app_main()
@@ -81,11 +83,10 @@ void app_main()
         nvs_close(storage_handle);
     }
 
-    // printf((char *)app_start);
     const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
     while (1)
     {
         vTaskDelay(xDelay);
-        // draw_disp();
+        keypad_check();
     }
 }

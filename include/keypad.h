@@ -9,6 +9,8 @@
 #define LEDC_HS_CH0_CHANNEL LEDC_CHANNEL_0
 
 #define PIN_BUZZER (18)
+static const unsigned char KEYPAD[] = {16, 17, 19, 21, 22, 23, 25, 26, 27, 33};
+static const uint8_t KEYCODE[] = {1, 5, 8, 2, 7};
 
 static const uint16_t notes[] = {
     0, 31, 33, 35, 37, 39, 41, 44, 46, 49, 52, 55, 58, 62, 65, 69, 73, 78, 82, 87, 93, 98, 104, 110, 117, 123, 131, 139, 147, 156, 165, 175, 185, 196, 208, 220,
@@ -109,4 +111,5 @@ typedef enum
 } piano_note_t;
 
 void esp32_beep(unsigned char key_num, unsigned int dur_hms);
-void init();
+void keypad_init();
+void keypad_check();
