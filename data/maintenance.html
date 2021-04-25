@@ -33,7 +33,26 @@
         </div>
         <div class="container">
             <h2>Misc.</h2>
-            <a class="btn btn-primary btn-lg active" role="button" href="/backup" download>Backup key</a>
+            <p>There are four security keys needed to backup data (sensitive data!!) (Key format: UHCTF{})</p>
+            <form action="/backup" method="POST">
+                <div class="mb-3">
+                    <label for="key1" class="form-label">KEY 1</label>
+                    <input type="text" class="form-control" name="key1">
+                </div>
+                <div class="mb-3">
+                    <label for="key2" class="form-label">KEY 2</label>
+                    <input type="text" class="form-control" name="key2">
+                </div>
+                <div class="mb-3">
+                    <label for="key3" class="form-label">KEY 3</label>
+                    <input type="text" class="form-control" name="key3">
+                </div>
+                <div class="mb-3">
+                    <label for="key4" class="form-label">KEY 4</label>
+                    <input type="text" class="form-control" name="key4">
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
         </div>
     </div>
     <script src="bootstrap.bundle.min.js"></script>

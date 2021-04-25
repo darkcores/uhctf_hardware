@@ -17,7 +17,7 @@
        __typeof__ (b) _b = (b); \
      _a < b ? _a : _b; })
 
-#define CONCAT2(a, b) a ## b
+#define CONCAT2(a, b) a##b
 #define CONCAT(a, b) CONCAT2(a, b)
 
 extern const uint8_t maintenance_start[] asm("_binary_maintenance_html_start");
@@ -28,6 +28,8 @@ extern const uint8_t bootstrap_css_start[] asm("_binary_bootstrap_min_css_start"
 extern const uint8_t bootstrap_css_end[] asm("_binary_bootstrap_min_css_end");
 extern const uint8_t webkey_pem_start[] asm("_binary_webkey_pem_start");
 extern const uint8_t webkey_pem_end[] asm("_binary_webkey_pem_end");
+extern const uint8_t auth_start[] asm("_binary_auth_html_start");
+extern const uint8_t auth_end[] asm("_binary_auth_html_end");
 
 static const char *TAG = "MAINTENANCE";
 
@@ -91,34 +93,46 @@ void wifi_init_softap()
 
 inline int ishex(int x)
 {
-	return	(x >= '0' && x <= '9')	||
-		(x >= 'a' && x <= 'f')	||
-		(x >= 'A' && x <= 'F');
+    return (x >= '0' && x <= '9') ||
+           (x >= 'a' && x <= 'f') ||
+           (x >= 'A' && x <= 'F');
 }
- 
+
 int decode(const char *s, char *dec)
 {
-	char *o;
-	const char *end = s + strlen(s);
-	int c;
- 
-	for (o = dec; s <= end; o++) {
-		c = *s++;
-		if (c == '+') c = ' ';
-		else if (c == '%' && (	!ishex(*s++)	||
-					!ishex(*s++)	||
-					!sscanf(s - 2, "%2x", &c)))
-			return -1;
- 
-		if (dec) *o = c;
-	}
- 
-	return o - dec;
+    char *o;
+    const char *end = s + strlen(s);
+    int c;
+
+    for (o = dec; s <= end; o++)
+    {
+        c = *s++;
+        if (c == '+')
+            c = ' ';
+        else if (c == '%' && (!ishex(*s++) ||
+                              !ishex(*s++) ||
+                              !sscanf(s - 2, "%2x", &c)))
+            return -1;
+
+        if (dec)
+            *o = c;
+    }
+
+    return o - dec;
+}
+
+static esp_err_t unauthorized(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_status(req, "401 Unauthorized");
+    httpd_resp_send(req, (char *)auth_start, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
 }
 
 static esp_err_t maintenance_get_handler(httpd_req_t *req)
 {
-    if (strstr(req->uri, "flag") == NULL) {
+    if (strstr(req->uri, "flag") == NULL)
+    {
         // Flag not here
         httpd_resp_set_type(req, "text/html");
         httpd_resp_set_status(req, "302 Found");
@@ -136,7 +150,8 @@ static esp_err_t maintenance_post_handler(httpd_req_t *req)
     char content[100] = {0};
     /* Truncate if content length larger than the buffer */
     size_t recv_size = MIN(req->content_len, sizeof(content));
-    if (recv_size >= 99) { // Make sure def string not too large
+    if (recv_size >= 99)
+    { // Make sure def string not too large
         return httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -158,7 +173,6 @@ static esp_err_t maintenance_post_handler(httpd_req_t *req)
     }
     ESP_LOGI(TAG, "Recv data: %s", content);
 
-
     nvs_handle_t storage_handle;
     ESP_ERROR_CHECK(nvs_open("storage", NVS_READWRITE, &storage_handle));
 
@@ -167,9 +181,11 @@ static esp_err_t maintenance_post_handler(httpd_req_t *req)
     // loop through the string to extract all other tokens
     while (token != NULL)
     {
-        if (strncmp(ssidtok, token, strlen(ssidtok)) == 0) {
+        if (strncmp(ssidtok, token, strlen(ssidtok)) == 0)
+        {
             char *ssid_ptr = &token[strlen(ssidtok) + 1];
-            if (strlen(ssid_ptr) >= 32) {
+            if (strlen(ssid_ptr) >= 32)
+            {
                 return httpd_resp_send_500(req);
                 return ESP_FAIL;
             }
@@ -178,9 +194,11 @@ static esp_err_t maintenance_post_handler(httpd_req_t *req)
             ESP_LOGW(TAG, "Set SSID to: %s", ssid);
             nvs_set_str(storage_handle, "ssid", ssid);
         }
-        if (strncmp(passtok, token, strlen(passtok)) == 0) {
+        if (strncmp(passtok, token, strlen(passtok)) == 0)
+        {
             char *pass_ptr = &token[strlen(passtok) + 1];
-            if (strlen(pass_ptr) >= 64) {
+            if (strlen(pass_ptr) >= 64)
+            {
                 return httpd_resp_send_500(req);
                 return ESP_FAIL;
             }
@@ -211,9 +229,55 @@ static esp_err_t css_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-static esp_err_t backup_get_handler(httpd_req_t *req)
+static esp_err_t backup_post_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "text/plain");
+    ESP_LOGI(TAG, "GOT POST REQUEST");
+    char content[255] = {0};
+    /* Truncate if content length larger than the buffer */
+    size_t recv_size = MIN(req->content_len, sizeof(content));
+    if (recv_size >= 254)
+    { // Make sure def string not too large
+        return httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    int ret = httpd_req_recv(req, content, recv_size);
+    if (ret <= 0)
+    { /* 0 return value indicates connection closed */
+        /* Check if timeout occurred */
+        ESP_LOGE(TAG, "ERROR READING POST DATA (%d)", ret);
+        ESP_LOGE(TAG, "%s", esp_err_to_name(ret));
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+        {
+            /* In case of timeout one can choose to retry calling
+             * httpd_req_recv(), but to keep it simple, here we
+             * respond with an HTTP 408 (Request Timeout) error */
+            httpd_resp_send_408(req);
+        }
+        return ESP_FAIL;
+    }
+    char decoded[255] = {0};
+    ESP_LOGI(TAG, "Recv data: %s", decoded);
+    decode(content, decoded);
+
+    if (strstr(decoded, CTF_FLAG1) == NULL)
+    {
+        return unauthorized(req);
+    }
+    if (strstr(decoded, CTF_FLAG2) == NULL)
+    {
+        return unauthorized(req);
+    }
+    if (strstr(decoded, CTF_FLAG3) == NULL)
+    {
+        return unauthorized(req);
+    }
+    if (strstr(decoded, CTF_FLAG4) == NULL)
+    {
+        return unauthorized(req);
+    }
+
+    httpd_resp_set_type(req, "application/x-binary");
     httpd_resp_send(req, (char *)webkey_pem_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
@@ -230,10 +294,10 @@ static httpd_uri_t css_uri_get = {
     .handler = css_get_handler,
     .user_ctx = NULL};
 
-static httpd_uri_t backup_uri_get = {
+static httpd_uri_t backup_uri_post = {
     .uri = "/backup",
-    .method = HTTP_GET,
-    .handler = backup_get_handler,
+    .method = HTTP_POST,
+    .handler = backup_post_handler,
     .user_ctx = NULL};
 
 static httpd_uri_t maintenance_uri_get = {
@@ -264,7 +328,7 @@ static httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &maintenance_uri_post);
         httpd_register_uri_handler(server, &js_uri_get);
         httpd_register_uri_handler(server, &css_uri_get);
-        httpd_register_uri_handler(server, &backup_uri_get);
+        httpd_register_uri_handler(server, &backup_uri_post);
         return server;
     }
 

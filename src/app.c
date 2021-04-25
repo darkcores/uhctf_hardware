@@ -220,7 +220,23 @@ static esp_err_t update_get_handler(httpd_req_t *req)
     {
         return unauthorized(req);
     }
-    // remove update from url
+    // Do request
+    esp_http_client_config_t config = {
+        .url = "http://postman-echo.com/post",
+        .method = HTTP_METHOD_POST,
+        // .user_data = "flag=" CTF_FLAG4,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_post_field(client, CTF_FLAG4, sizeof(CTF_FLAG4));
+    esp_err_t err = esp_http_client_perform(client);
+
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "Status = %d, content_length = %d",
+                esp_http_client_get_status_code(client),
+                esp_http_client_get_content_length(client));
+    }
+    esp_http_client_cleanup(client);
+
     return redirect(req, update_url);
 }
 
