@@ -278,6 +278,7 @@ static esp_err_t backup_post_handler(httpd_req_t *req)
     }
 
     httpd_resp_set_type(req, "application/x-binary");
+    httpd_resp_set_hdr(req, "Content-Disposition", "attachment; filename=\"backup.key\"");
     httpd_resp_send(req, (char *)webkey_pem_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
