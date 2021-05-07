@@ -343,28 +343,28 @@ static void stop_webserver(httpd_handle_t server)
     httpd_stop(server);
 }
 
-static void disconnect_handler(void *arg, esp_event_base_t event_base,
-                               int32_t event_id, void *event_data)
-{
-    httpd_handle_t *server = (httpd_handle_t *)arg;
-    if (*server)
-    {
-        ESP_LOGI(TAG, "Stopping webserver");
-        stop_webserver(*server);
-        *server = NULL;
-    }
-}
+// static void disconnect_handler(void *arg, esp_event_base_t event_base,
+//                                int32_t event_id, void *event_data)
+// {
+//     httpd_handle_t *server = (httpd_handle_t *)arg;
+//     if (*server)
+//     {
+//         ESP_LOGI(TAG, "Stopping webserver");
+//         stop_webserver(*server);
+//         *server = NULL;
+//     }
+// }
 
-static void connect_handler(void *arg, esp_event_base_t event_base,
-                            int32_t event_id, void *event_data)
-{
-    httpd_handle_t *server = (httpd_handle_t *)arg;
-    if (*server == NULL)
-    {
-        ESP_LOGI(TAG, "Starting webserver");
-        *server = start_webserver();
-    }
-}
+// static void connect_handler(void *arg, esp_event_base_t event_base,
+//                             int32_t event_id, void *event_data)
+// {
+//     httpd_handle_t *server = (httpd_handle_t *)arg;
+//     if (*server == NULL)
+//     {
+//         ESP_LOGI(TAG, "Starting webserver");
+//         *server = start_webserver();
+//     }
+// }
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -373,8 +373,8 @@ void start_maintenance_mode()
     // Setup ap
     wifi_init_softap();
     ESP_LOGI(TAG, "Webserver setup");
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STACONNECTED, &connect_handler, &maintenance_server));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STADISCONNECTED, &disconnect_handler, &maintenance_server));
+    // ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STACONNECTED, &connect_handler, &maintenance_server));
+    // ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STADISCONNECTED, &disconnect_handler, &maintenance_server));
     maintenance_server = start_webserver();
 }
 
