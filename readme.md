@@ -61,3 +61,5 @@ Connect usb serial, reset device, and read device output (115200 baudrate).
 If you have esptool installed, just run `espefuse.py burn_efuse FLASH_CRYPT_CNT` and type `BURN` ONCE, everytime you do this you disable/enable encryption, and there are a limited amount of fuses to do this.
 
 Flash a hello world project or something else that is not encrypted to test if it worked.
+
+For more information: [esp32 flash encryption](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/security/flash-encryption.html)
